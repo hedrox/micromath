@@ -1,0 +1,51 @@
+version: "3.8"
+services:
+  controller:
+    build: ./micromath/controller
+    ports:
+      - "8080:8080"
+    restart: always
+    depends_on:
+      - redis
+      - mongo
+      - elasticsearch
+      - logstash
+      - kibana
+  pow:
+    build: ./micromath/pow
+    restart: always
+  fibonacci:
+    build: ./micromath/fibonacci
+    restart: always
+  factorial:
+    build: ./micromath/factorial
+    restart: always
+  redis:
+    image: redis:6.0.9
+    restart: always
+  mongo:
+    image: mongo:4.4-bionic
+    restart: always
+  elasticsearch:
+    image: elasticsearch:7.9.3
+    environment:
+      - discovery.type=single-node
+    restart: always
+  logstash:
+    image: logstash:7.9.3
+    volumes:
+      - type: bind
+        source: ./micromath/logstash
+        target: /usr/share/logstash/pipeline
+        read_only: true
+    restart: always
+    depends_on:
+      - elasticsearch
+  kibana:
+    image: kibana:7.9.3
+    ports:
+      - "5601:5601"
+    restart: always
+    depends_on:
+      - elasticsearch
+  
