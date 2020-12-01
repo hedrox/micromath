@@ -21,8 +21,13 @@ from utils import initialize_kibana
 
 logger = logging.getLogger('logstash-logger')
 logger.setLevel(logging.DEBUG)
+
 async_handler = AsynchronousLogstashHandler('logstash', 5000, database_path=None)
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)
+
 logger.addHandler(async_handler)
+logger.addHandler(console_handler)
 
 flask_name = "controller_server"
 FLASK_SECRET_KEY = open('flask_secret_key').read()
@@ -51,9 +56,15 @@ users_collection.insert_one({'email': 'null@null.com', 'username': 'null', 'pass
 
 login_manager = flask_login.LoginManager(app)
 class User(flask_login.UserMixin):
+    """
+    User object used by the flask login to store and validate credentials
+    """
     pass
 
-def get_user_from_db(username):
+def get_user_from_db(username:str):
+    """
+    Search the username in mongodb
+    """
     user = list(users_collection.find({"username": username}))
     if user:
         return user
@@ -102,7 +113,8 @@ def login():
 
     user = get_user_from_db(username)
     if not user:
-        {'result': None, 'error': 'User not in db'}
+        logger.info(f"User {username} not found in db")
+        return {'result': None, 'error': 'User not in db'}
 
     if request.form['password'] == user[0]['password']:
         user = User()
@@ -124,10 +136,15 @@ def logout():
 
 @login_manager.unauthorized_handler
 def unauthorized_handler():
+    logger.warning("Unauthorized access")
     return {'result': None, 'error': 'Unauthorized'}
 
 
 def filter_request(req):
+    """
+    Extract request attributes from the request metadata
+    """
+
     res = {'path': req['environ']['PATH_INFO'],
            'method': req['environ']['REQUEST_METHOD'],
            'user-agent': req['environ']['HTTP_USER_AGENT'],
@@ -140,11 +157,7 @@ def filter_request(req):
 def logging_request(func):
     @wraps(func)
     def inner(*args, **kwargs):
-        if request.environ['CONTENT_TYPE'] == "application/json":
-            data = request.json
-        else:
-            data = request.form
-
+        data = get_data_from_request()
         req_log = filter_request(request.__dict__)
         req_log['data'] = data
 
@@ -161,30 +174,50 @@ def logging_request(func):
         es_log = copy(req_log)
         request_collection.insert_one(req_log)
         es_client.index(index="requests", body=es_log)
+        logger.debug("Received request on path: {}".format(req_log['path']))
 
         return res
     return inner
 
 
-def make_cache_key(*args, **kwargs):
+@app.errorhandler(Exception)
+def internal_error(error):
+    response = error.get_response()
+    response.data = json.dumps({"code": error.code,
+                                "name": error.name,
+                                "description": error.description
+                                })
+    response.content_type = "application/json"
+    return response
+
+def get_data_from_request():
+    """
+    Extract the content from the POST request
+    """
+
     if request.environ['CONTENT_TYPE'] == "application/json":
         data = request.json
     else:
         data = request.form
+    return data
+
+def make_cache_key(*args, **kwargs):
+    """
+    Compute the cache hash based not only on the request path,
+    but also on the contents of the request.
+    """
+    data = get_data_from_request()
     cache_key_hash = hash(request.path + str(data) + str(request.args))
     return str(cache_key_hash)
+
 
 @app.route('/api/<version>/pow', methods=['POST'])
 @flask_login.login_required
 @logging_request
 @cache.cached(timeout=600, key_prefix=make_cache_key)
-def power(version):
+def power(version:str):
     if version == "v1":
-        if request.environ['CONTENT_TYPE'] == "application/json":
-            data = request.json
-        else:
-            data = request.form
-
+        data = get_data_from_request()
         res = requests.post(f"http://pow:8081/api/{version}/pow", json=data)
         if res.status_code == 200:
             return res.json()
@@ -194,13 +227,9 @@ def power(version):
 @flask_login.login_required
 @logging_request
 @cache.cached(timeout=600, key_prefix=make_cache_key)
-def fibonacci(version):
+def fibonacci(version:str):
     if version == "v1":
-        if request.environ['CONTENT_TYPE'] == "application/json":
-            data = request.json
-        else:
-            data = request.form
-
+        data = get_data_from_request()
         res = requests.post(f"http://fibonacci:8082/api/{version}/fibonacci", json=data)
         if res.status_code == 200:
             return res.json()
@@ -210,13 +239,9 @@ def fibonacci(version):
 @flask_login.login_required
 @logging_request
 @cache.cached(timeout=600, key_prefix=make_cache_key)
-def factorial(version):
+def factorial(version:str):
     if version == "v1":
-        if request.environ['CONTENT_TYPE'] == "application/json":
-            data = request.json
-        else:
-            data = request.form
-
+        data = get_data_from_request()
         res = requests.post(f"http://factorial:8083/api/{version}/factorial", json=data)
         if res.status_code == 200:
             return res.json()
@@ -226,7 +251,7 @@ def factorial(version):
 @flask_login.login_required
 @logging_request
 @cache.cached(timeout=30)
-def get_logs(version):
+def get_logs(version:str):
     if version == "v1":
         logged_requests = list(request_collection.find())
         for req in logged_requests:

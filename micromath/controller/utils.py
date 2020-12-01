@@ -5,11 +5,15 @@ from multiprocessing import Process
 
 
 def initialize_kibana():
+    """
+    Creating a daemon process to initialize kibana with two index pattern so that they don't have to be
+    manually added by the user when entering kibana for the first time.
+    """
     def poll_kibana_index_pattern():
         """
         We are polling for 5 minutes for kibana to be up so that the requests and logging index 
         pattern can be created.
-        Tasks such as this could be more scalable done using Celery
+        Tasks such as this could be more scalable done using Celery.
         """
 
         indices = ["requests", "logging"]
