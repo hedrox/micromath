@@ -149,17 +149,17 @@ def filter_request(req):
            'method': req['environ']['REQUEST_METHOD'],
            'user-agent': req['environ']['HTTP_USER_AGENT'],
            'remote_addr': req['environ']['REMOTE_ADDR'],
-           'remote_port': req['environ']['REMOTE_PORT'],
-           'content_type': req['environ']['CONTENT_TYPE']
+           'remote_port': req['environ']['REMOTE_PORT']
            }
+    if req['environ'].get('CONTENT_TYPE'):
+        res['content_type'] = req['environ']['CONTENT_TYPE']
     return res
 
 def logging_request(func):
     @wraps(func)
     def inner(*args, **kwargs):
-        data = get_data_from_request()
         req_log = filter_request(request.__dict__)
-        req_log['data'] = data
+        req_log['data'] = get_data_from_request()
 
         before_func = time.time()
         res = func(*args, **kwargs)
@@ -195,11 +195,12 @@ def get_data_from_request():
     Extract the content from the POST request
     """
 
-    if request.environ['CONTENT_TYPE'] == "application/json":
-        data = request.json
-    else:
-        data = request.form
-    return data
+    if request.method == 'POST':
+        if request.environ['CONTENT_TYPE'] == "application/json":
+            data = request.json
+        else:
+            data = request.form
+        return data
 
 def make_cache_key(*args, **kwargs):
     """
