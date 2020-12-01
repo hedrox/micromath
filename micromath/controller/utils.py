@@ -16,7 +16,7 @@ def initialize_kibana():
         Tasks such as this could be more scalable done using Celery.
         """
 
-        indices = ["requests", "logging"]
+        indices = ["requests", "logging", "container_logs"]
         tries = 30
         while indices and tries > 0:
             for index in indices:

@@ -35,6 +35,33 @@ logger.addHandler(async_handler)
 logger.addHandler(console_handler)
 
 
+@app.errorhandler(Exception)
+def internal_error(error):
+    if hasattr(error, 'get_response'):
+        # In case a exception that inherits from werkzeug.exceptions.HTTPException is received
+        original_error = getattr(error, "original_exception", None)
+        reponse = {
+            "result": None,
+            "error": {
+                "code": error.code,
+                "name": error.name,
+                "description": original_error or error.description
+            }
+        }
+        return jsonify(response), error.code
+    else:
+        # In case a normal Python exception is caught
+        response = {
+            "result": None,
+            "error": {
+                "code": 500,
+                "name": type(error).__name__,
+                "description": str(error)
+            }
+        }
+        return jsonify(response), 500
+
+
 @app.route('/api/<version>/factorial', methods=['POST'])
 def post_factorial(version:str) -> Dict:
     """
@@ -66,7 +93,7 @@ def post_factorial(version:str) -> Dict:
         res = factorial(data['number'])
         return {"result": res, "error": None}
     else:
-        return {"result": None, "error": f"API version {version} not found"}
+        return ({"result": None, "error": f"API version {version} not found"}, 404)
 
 
 if __name__ == "__main__":

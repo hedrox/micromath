@@ -24,18 +24,22 @@ logger.setLevel(logging.DEBUG)
 
 async_handler = AsynchronousLogstashHandler('logstash', 5000, database_path=None)
 console_handler = logging.StreamHandler()
+#TODO: format this console handler logs to output the date and file
 console_handler.setLevel(logging.DEBUG)
 
 logger.addHandler(async_handler)
 logger.addHandler(console_handler)
 
 flask_name = "controller_server"
+# Used in case of a paginated response from mongodb
+DEFAULT_PAGE_SIZE = 5
 FLASK_SECRET_KEY = open('flask_secret_key').read()
+JSONIFY_PRETTYPRINT_REGULAR = True
 
 app = Flask(flask_name)
 app.config.from_mapping(
     SECRET_KEY=FLASK_SECRET_KEY,
-    JSONIFY_PRETTYPRINT_REGULAR=True
+    JSONIFY_PRETTYPRINT_REGULAR=JSONIFY_PRETTYPRINT_REGULAR
 )
 
 cache = Cache(app, config={'CACHE_TYPE': 'redis',
@@ -182,13 +186,29 @@ def logging_request(func):
 
 @app.errorhandler(Exception)
 def internal_error(error):
-    response = error.get_response()
-    response.data = json.dumps({"code": error.code,
-                                "name": error.name,
-                                "description": error.description
-                                })
-    response.content_type = "application/json"
-    return response
+    if hasattr(error, 'get_response'):
+        # In case a exception that inherits from werkzeug.exceptions.HTTPException is received
+        original_error = getattr(error, "original_exception", None)
+        reponse = {
+            "result": None,
+            "error": {
+                "code": error.code,
+                "name": error.name,
+                "description": original_error or error.description
+            }
+        }
+        return jsonify(response), error.code
+    else:
+        # In case a normal Python exception is caught
+        response = {
+            "result": None,
+            "error": {
+                "code": 500,
+                "name": type(error).__name__,
+                "description": str(error)
+            }
+        }
+        return jsonify(response), 500
 
 def get_data_from_request():
     """
@@ -222,6 +242,10 @@ def power(version:str):
         res = requests.post(f"http://pow:8081/api/{version}/pow", json=data)
         if res.status_code == 200:
             return res.json()
+        else:
+            return (res.text, res.status_code)
+    else:
+        return ({"result": None, "error": f"API version {version} not found"}, 404)
 
 
 @app.route('/api/<version>/fibonacci', methods=['POST'])
@@ -234,6 +258,10 @@ def fibonacci(version:str):
         res = requests.post(f"http://fibonacci:8082/api/{version}/fibonacci", json=data)
         if res.status_code == 200:
             return res.json()
+        else:
+            return (res.text, res.status_code)
+    else:
+        return ({"result": None, "error": f"API version {version} not found"}, 404)
 
 
 @app.route('/api/<version>/factorial', methods=['POST'])
@@ -246,19 +274,30 @@ def factorial(version:str):
         res = requests.post(f"http://factorial:8083/api/{version}/factorial", json=data)
         if res.status_code == 200:
             return res.json()
+        else:
+            return (res.text,res.status_code)
+    else:
+        return ({"result": None, "error": f"API version {version} not found"}, 404)
 
 
 @app.route('/api/<version>/logs', methods=['GET'])
 @flask_login.login_required
 @logging_request
-@cache.cached(timeout=30)
 def get_logs(version:str):
     if version == "v1":
-        logged_requests = list(request_collection.find())
+        # Pagination
+        page_no = request.args.get('page')
+        if page_no:
+            skip = DEFAULT_PAGE_SIZE * (int(page_no)-1)
+            logged_requests = list(request_collection.find().skip(skip).limit(DEFAULT_PAGE_SIZE))
+        else:
+            logged_requests = list(request_collection.find())
         for req in logged_requests:
             req['_id'] = str(req['_id'])
 
         return jsonify(logged_requests)
+    else:
+        return ({"result": None, "error": f"API version {version} not found"}, 404)
 
 
 if __name__ == "__main__":

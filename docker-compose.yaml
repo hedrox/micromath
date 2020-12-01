@@ -2,6 +2,7 @@ version: "3.8"
 services:
   controller:
     build: ./micromath/controller
+    image: micromath_controller:prod
     ports:
       - "8080:8080"
     restart: always
@@ -13,12 +14,15 @@ services:
       - kibana
   pow:
     build: ./micromath/pow
+    image: micromath_pow:prod
     restart: always
   fibonacci:
     build: ./micromath/fibonacci
+    image: micromath_fibonacci:prod
     restart: always
   factorial:
     build: ./micromath/factorial
+    image: micromath_factorial:prod
     restart: always
   redis:
     image: redis:6.0.9
@@ -41,6 +45,7 @@ services:
     restart: always
     depends_on:
       - elasticsearch
+      - kibana
   kibana:
     image: kibana:7.9.3
     ports:
@@ -48,4 +53,13 @@ services:
     restart: always
     depends_on:
       - elasticsearch
+  logspout:
+    image: gliderlabs/logspout:v3
+    command: 'udp://logstash:5000'
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock'
+    depends_on:
+    - elasticsearch
+    - logstash
+    - kibana
   

@@ -1,2 +1,6 @@
 venv
-*egg-info
+*.egg-info
+dist/
+build/
+*.pyc
+__pycache__/
