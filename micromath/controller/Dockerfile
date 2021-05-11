@@ -1,11 +1,9 @@
-FROM python:3.6-alpine
+FROM python:3.8-alpine
 
 RUN apk add --update --no-cache py-pip
 
 WORKDIR /app/
-COPY controller.py /app/controller.py
-COPY utils.py /app/utils.py
-COPY requirements.txt .
+COPY . .
 
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt

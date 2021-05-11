@@ -3,7 +3,7 @@
 Toy microservice architecture for 3 math operations: exponentiation, fibonacci and factorial
 
 ### Requirements
-1. Python >=3.6
+1. Python >=3.8
 2. Docker
 
 ### Installation
@@ -24,8 +24,9 @@ docker-compose up -d
 import requests
 sess = requests.Session()
 
-sess.post('http://localhost:8080/login', data={'username': 'null', 'password': 'null'})
-result = sess.post('http://localhost:8080/api/v1/pow', json={'base': 2, 'power': 3})
+sess.post('http://localhost:8080/api/v1/pow', json={'base': 2, 'power': 3})
+sess.post('http://localhost:8080/api/v1/fibonacci', json={'number': 10})
+sess.post('http://localhost:8080/api/v1/factorial', json={'number': 10})
 
 logs = sess.get('http://localhost:8080/api/v1/logs?page=1')
 ```
@@ -47,9 +48,7 @@ docker-compose down --rmi all
 
 ### TODO
 
-* Better login password comparison
 * Reverse proxy (nginx)
 * Unit testing
 * TLS support
 * Refactor the routes with Viewes, they can achieve better code quality than routes
-* Use docker swarm mode to work with services and be able to scale containers

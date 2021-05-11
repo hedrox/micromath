@@ -1,46 +1,22 @@
-import os
-import logging
-
-from flask import Flask
-from flask import request
 from math import factorial
-from jsonschema import validate
-from logstash_async.handler import AsynchronousLogstashHandler
-
 from typing import Dict
 
-schema = {
-    "type": "object",
-    "properties": {
-        "number": {"type": "number"}
-    },
-    "required": ["number"]
-}
+from flask import Flask, request, jsonify
 
+from config import FLASK_SECRET_KEY, FLASK_NAME
+from utils import validate_input, get_logger
 
-flask_name = "factorial_server"
-FLASK_SECRET_KEY = open('flask_secret_key').read()
-
-app = Flask(flask_name)
+app = Flask(FLASK_NAME)
 app.config.from_mapping(SECRET_KEY=FLASK_SECRET_KEY)
 
-logger = logging.getLogger('logstash-logger')
-logger.setLevel(logging.DEBUG)
-
-async_handler = AsynchronousLogstashHandler('logstash', 5000, database_path=None)
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
-
-logger.addHandler(async_handler)
-logger.addHandler(console_handler)
-
+logger = get_logger('logstash-logger')
 
 @app.errorhandler(Exception)
 def internal_error(error):
     if hasattr(error, 'get_response'):
         # In case a exception that inherits from werkzeug.exceptions.HTTPException is received
         original_error = getattr(error, "original_exception", None)
-        reponse = {
+        response = {
             "result": None,
             "error": {
                 "code": error.code,
@@ -85,13 +61,13 @@ def post_factorial(version:str) -> Dict:
             data = request.form
 
         try:
-            validate(data, schema=schema)
+            validate_input(data)
         except Exception as e:
             logger.exception(e)
             raise
 
         res = factorial(data['number'])
-        return {"result": res, "error": None}
+        return {"result": str(res), "error": None}
     else:
         return ({"result": None, "error": f"API version {version} not found"}, 404)
 
