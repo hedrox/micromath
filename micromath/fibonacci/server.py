@@ -59,7 +59,7 @@ def compute_fibonacci(number):
 
 
 @app.route('/api/<version>/fibonacci', methods=['POST'])
-def fibonacci(version:str) -> Dict:
+def fibonacci(version: str) -> Dict:
     """
     Endpoint that computes the fibonacci sequence.
 
@@ -75,10 +75,12 @@ def fibonacci(version:str) -> Dict:
     """
 
     if version == "v1":
-        if request.environ['CONTENT_TYPE'] == "application/json":
+        if request.environ.get("CONTENT_TYPE", "") == "application/json":
             data = request.json
         elif request.form:
             data = request.form
+        else:
+            return ({"result": None, "error": "Data not provided"}, 400)
 
         try:
             validate_input(data)
@@ -87,9 +89,7 @@ def fibonacci(version:str) -> Dict:
             raise
 
         res = compute_fibonacci(data['number'])
-        if res:
-            return {"result": str(res), "error": None}
-        return {"result": None, "error": "Fibonacci function failed"}
+        return {"result": str(res), "error": None}
     else:
         return ({"result": None, "error": f"API version {version} not found"}, 404)
 

@@ -8,7 +8,8 @@ input_schema = {
     "properties": {
         "number": {"type": "number"}
     },
-    "required": ["number"]
+    "required": ["number"],
+    "additionalProperties": False
 }
 
 def validate_input(data):

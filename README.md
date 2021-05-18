@@ -49,6 +49,5 @@ docker-compose down --rmi all
 ### TODO
 
 * Reverse proxy (nginx)
-* Unit testing
 * TLS support
 * Refactor the routes with Viewes, they can achieve better code quality than routes

@@ -9,7 +9,8 @@ input_schema = {
         "base": {"type": "number"},
         "power": {"type": "number"},
     },
-    "required": ["base", "power"]
+    "required": ["base", "power"],
+    "additionalProperties": False
 }
 
 

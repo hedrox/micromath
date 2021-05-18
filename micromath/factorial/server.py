@@ -39,7 +39,7 @@ def internal_error(error):
 
 
 @app.route('/api/<version>/factorial', methods=['POST'])
-def post_factorial(version:str) -> Dict:
+def post_factorial(version: str) -> Dict:
     """
     Endpoint that computes the factorial operation.
 
@@ -55,10 +55,12 @@ def post_factorial(version:str) -> Dict:
     """
 
     if version == "v1":
-        if request.environ['CONTENT_TYPE'] == "application/json":
+        if request.environ.get("CONTENT_TYPE", "") == "application/json":
             data = request.json
         elif request.form:
             data = request.form
+        else:
+            return ({"result": None, "error": "Data not provided"}, 400)
 
         try:
             validate_input(data)

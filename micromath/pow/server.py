@@ -59,10 +59,12 @@ def power(version: str) -> Union[Dict, Tuple]:
     """
 
     if version == "v1":
-        if request.environ['CONTENT_TYPE'] == "application/json":
+        if request.environ.get("CONTENT_TYPE", "") == "application/json":
             data = request.json
         elif request.form:
             data = request.form
+        else:
+            return ({"result": None, "error": "Data not provided"}, 400)
 
         try:
             validate_input(data)
